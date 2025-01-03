@@ -23,10 +23,11 @@ def get_model(model):
         model = OPTForCausalLM.from_pretrained(model, torch_dtype="auto")
         model.seqlen = model.config.max_position_embeddings
     elif "llama" in model:
-        from transformers import LlamaForCausalLM
+        from transformers import AutoModelForCausalLM
 
-        model = LlamaForCausalLM.from_pretrained(model, torch_dtype="auto")
+        model = AutoModelForCausalLM.from_pretrained(model, torch_dtype="float32") 
         model.seqlen = 2048
+        print(model.dtype)
     return model
 
 
@@ -63,6 +64,7 @@ def quant_sequential(model, dataloader, dev):
         layers = model.model.layers
         model.model.embed_tokens = model.model.embed_tokens.to(dev)
         model.model.norm = model.model.norm.to(dev)
+        model.model.rotary_emb = model.model.rotary_emb.to(dev)
     layers[0] = layers[0].to(dev)
 
     dtype = next(iter(model.parameters())).dtype
@@ -80,6 +82,7 @@ def quant_sequential(model, dataloader, dev):
             inps[cache["i"]] = inp
             cache["i"] += 1
             cache["attention_mask"] = kwargs["attention_mask"]
+            cache['position_ids'] = kwargs['position_ids'] # 与gptq对齐，依据AutoGPTQ的issue，原因好像是库版本的问题
             raise ValueError
 
     layers[0] = Catcher(layers[0])
@@ -111,6 +114,7 @@ def quant_sequential(model, dataloader, dev):
 
     outs = torch.zeros_like(inps)
     attention_mask = cache["attention_mask"]
+    position_ids = cache['position_ids']
 
     print("Ready.")
     
@@ -147,7 +151,7 @@ def quant_sequential(model, dataloader, dev):
         for name in gptq:
             handles.append(subset[name].register_forward_hook(add_batch(name)))
         for j in range(args.nsamples):
-            outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
+            outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
         for h in handles:
             h.remove()
 

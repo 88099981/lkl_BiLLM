@@ -1,6 +1,6 @@
 from re import L
 import numpy as np
-from pyparsing import line
+#from pyparsing import line
 import torch
 from binary import high_order_residual
 from utils.mask import generate_structural_mask
