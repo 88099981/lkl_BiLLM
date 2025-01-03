@@ -34,6 +34,7 @@ def llama_eval(model, testenc, dev,  dataset: str, log_wandb: bool = False):
             inps[cache["i"]] = inp
             cache["i"] += 1
             cache["attention_mask"] = kwargs["attention_mask"]
+            cache['position_ids'] = kwargs['position_ids']
             raise ValueError
 
     layers[0] = Catcher(layers[0])
@@ -51,13 +52,14 @@ def llama_eval(model, testenc, dev,  dataset: str, log_wandb: bool = False):
 
     outs = torch.zeros_like(inps)
     attention_mask = cache["attention_mask"]
+    position_ids = cache['position_ids'] 
 
     for i in range(len(layers)):
         print(i)
         layer = layers[i].to(dev)
 
         for j in range(nsamples):
-            outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask)[0]
+            outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
         layers[i] = layer.cpu()
         del layer
         torch.cuda.empty_cache()

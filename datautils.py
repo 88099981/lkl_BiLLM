@@ -51,8 +51,8 @@ def get_ptb(nsamples, seed, seqlen, model, tokenizer):
     traindata = load_dataset('/home/liukunlong/lkl_dataset/ptb/data', split='train') # 本地加载数据集
     testdata = load_dataset('/home/liukunlong/lkl_dataset/ptb/data', split='test') # 本地加载数据集
 
-    trainenc = tokenizer(" ".join(traindata['sentence']), return_tensors='pt')
-    testenc = tokenizer(" ".join(testdata['sentence']), return_tensors='pt')
+    trainenc = tokenizer(" ".join(traindata['text']), return_tensors='pt')
+    testenc = tokenizer(" ".join(testdata['text']), return_tensors='pt')
 
     random.seed(seed)
     trainloader = []
