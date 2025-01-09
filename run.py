@@ -227,7 +227,7 @@ if __name__ == "__main__":
         "--salient_metric",
         type=str,
         default="magnitude",
-        choices=["magnitude", "hessian"],
+        choices=["magnitude", "hessian", "lkl_hessian"],
     )
     parser.add_argument(
         "--device",

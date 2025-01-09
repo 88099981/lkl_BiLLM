@@ -16,7 +16,7 @@ def part_mean(tensor, op='-'):
 def high_order_residual(x, mask, order=2):
     sum_order = torch.zeros_like(x)
     new_matrix = x.clone()
-    new_matrix = new_matrix * mask
+    new_matrix = new_matrix * mask # 两个相同大小的向量相乘是逐元素相乘
     global index
     index += 1
     for od in range(order):

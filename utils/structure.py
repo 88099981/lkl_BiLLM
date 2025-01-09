@@ -1,7 +1,7 @@
 import torch
 from utils.autosearch import structural_searching
 from utils.mask import generate_structural_mask
-
+from binary import high_order_residual
 '''
 Used to generate masks for minor structural 2-bit salient data and split major 1-bit normal data according to different metric.
 '''
@@ -10,6 +10,10 @@ def structural_guassian_distribution(tmp, H=None, metric="magnitude", up_lim=30)
         target_weights = tmp ** 2 / (torch.diag(H).reshape((1, -1))) ** 2
     elif metric == "magnitude":
         target_weights = tmp
+    elif metric == "lkl_hessian":
+        mask_forsearch = torch.ones_like(tmp, dtype=torch.bool)
+        Q_forsearch = high_order_residual(tmp, mask_forsearch, order=2) # 可能还要还要修改为残差和普通的差值
+        target_weights = (tmp - Q_forsearch)**2 / (torch.diag(H).reshape((1, -1))) 
     else:
         raise NotImplementedError
 
