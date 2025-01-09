@@ -1,4 +1,7 @@
 import torch
+import wandb
+import numpy as np
+import matplotlib.pyplot as plt
 from utils.autosearch import structural_searching
 from utils.mask import generate_structural_mask
 from binary import high_order_residual
@@ -12,13 +15,61 @@ def structural_guassian_distribution(tmp, H=None, metric="magnitude", up_lim=30)
         target_weights = tmp
     elif metric == "lkl_hessian":
         mask_forsearch = torch.ones_like(tmp, dtype=torch.bool)
-        Q_forsearch = high_order_residual(tmp, mask_forsearch, order=2) # 可能还要还要修改为残差和普通的差值
-        target_weights = (tmp - Q_forsearch)**2 / (torch.diag(H).reshape((1, -1))) 
+        # Q_forsearch_1 = high_order_residual(tmp, mask_forsearch, order=1)
+        Q_forsearch_2 = high_order_residual(tmp, mask_forsearch, order=2)
+        target_weights_lkl = (tmp - Q_forsearch_2)**2 / (torch.diag(H).reshape((1, -1))) 
+        target_weights_billm = tmp ** 2 / (torch.diag(H).reshape((1, -1))) ** 2
     else:
         raise NotImplementedError
+    
+    optimal_split, mask3, chosen_columns_lkl = structural_searching(target_weights_lkl, up_lim)
+    optimal_split, mask3, chosen_columns_billm = structural_searching(target_weights_billm, up_lim)
+    mask1, mask2 = generate_structural_mask(target_weights_lkl, mask3, optimal_split)
 
-    optimal_split, mask3 = structural_searching(target_weights, up_lim)
-    mask1, mask2 = generate_structural_mask(target_weights, mask3, optimal_split)
 
-    print(mask1.sum() / mask1.numel(), mask2.sum() / mask2.numel(), mask3.sum() / mask3.numel())
+    # 可视化部分
+
+    # 创建3D surface plots
+    def create_3d_surface(tensor, name):
+        tensor_np = tensor.abs().detach().cpu().numpy()
+        x = np.arange(tensor_np.shape[0])
+        y = np.arange(tensor_np.shape[1])
+        X, Y = np.meshgrid(x, y)
+        
+        # 创建matplotlib的3D surface plot
+        fig = plt.figure(figsize=(10, 8))
+        ax = fig.add_subplot(111, projection='3d')
+        surf = ax.plot_surface(X, Y, tensor_np.T, cmap='viridis', edgecolor='none')
+        ax.set_title(name, pad=20, fontsize=12)
+        ax.set_xlabel('Token')
+        ax.set_ylabel('Dimension')
+        ax.set_zlabel('Value')
+        fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5)
+        
+        # 设置视角
+        ax.view_init(elev=30, azim=45)
+        plt.tight_layout()
+        
+        # 创建返回字典
+        result = {
+            f"{name}": wandb.Image(fig)
+        }
+        
+        plt.savefig('test_3d.png')
+        # 清理图形
+        plt.close(fig)
+        
+        return result
+    
+    log_dict = {}
+    log_dict.update(create_3d_surface(tmp, f"tmp_{metric}"))
+    log_dict.update(create_3d_surface(target_weights_billm, f"target_weights_billm"))
+    log_dict.update(create_3d_surface(target_weights_lkl, f"target_weights_lkl"))
+    
+    log_dict.update({"chosen_columns_lkl":chosen_columns_lkl})
+    log_dict.update({"chosen_columns_billm":chosen_columns_billm})
+
+    wandb.log(log_dict)
+
+    print(optimal_split, mask1.sum() / mask1.numel(), mask2.sum() / mask2.numel(), mask3.sum() / mask3.numel())
     return mask1, mask2, mask3

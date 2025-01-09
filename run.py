@@ -1,12 +1,19 @@
 import time
-
+import wandb
 import torch
 import torch.nn as nn
+import argparse
 
 from bigptq import BRAGPTQ
 from binary import Binarization
 from modelutils import find_layers
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model', type=str, help='模型名称')
+    parser.add_argument('--dataset', type=str, help='数据集名称')
+    # 添加其他已有的参数...
+    return parser.parse_args()
 
 def get_model(model):
     import torch
@@ -177,7 +184,7 @@ def quant_sequential(model, dataloader, dev):
     model.config.use_cache = use_cache
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":   
     import argparse
     from datautils import *
 
@@ -262,6 +269,17 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    # 初始化wandb
+    wandb.init(
+        project="lkl_BiLLM_Quantization",
+        name=f"{args.model}-{time.strftime('%Y%m%d-%H%M%S')}",
+        config={
+            "model": args.model,
+            "dataset": args.dataset,
+            # 其他配置参数...
+        }
+    )
+
     groupsize = args.blocksize
 
     device = args.device

@@ -1,0 +1,16 @@
+{"time":"2025-01-08T07:39:00.904031104Z","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-01-08T07:39:00.904047929Z","level":"INFO","msg":"created symlink","path":"/home/liukunlong/lkl_BiLLM/wandb/run-20250108_073900-ho9fw046/logs/debug-core.log"}
+{"time":"2025-01-08T07:39:01.111513079Z","level":"INFO","msg":"created new stream","id":"ho9fw046"}
+{"time":"2025-01-08T07:39:01.111556905Z","level":"INFO","msg":"stream: started","id":"ho9fw046"}
+{"time":"2025-01-08T07:39:01.111599539Z","level":"INFO","msg":"writer: Do: started","stream_id":"ho9fw046"}
+{"time":"2025-01-08T07:39:01.111606169Z","level":"INFO","msg":"handler: started","stream_id":"ho9fw046"}
+{"time":"2025-01-08T07:39:01.11169304Z","level":"INFO","msg":"sender: started","stream_id":"ho9fw046"}
+{"time":"2025-01-08T07:39:01.53515703Z","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-01-08T07:41:36.893603724Z","level":"INFO","msg":"stream: closing","id":"ho9fw046"}
+{"time":"2025-01-08T07:41:36.893651917Z","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-01-08T07:41:36.895259049Z","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-01-08T07:41:38.201424835Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-01-08T07:41:38.650982543Z","level":"INFO","msg":"handler: closed","stream_id":"ho9fw046"}
+{"time":"2025-01-08T07:41:38.651033509Z","level":"INFO","msg":"writer: Close: closed","stream_id":"ho9fw046"}
+{"time":"2025-01-08T07:41:38.651057004Z","level":"INFO","msg":"sender: closed","stream_id":"ho9fw046"}
+{"time":"2025-01-08T07:41:38.651108161Z","level":"INFO","msg":"stream: closed","id":"ho9fw046"}

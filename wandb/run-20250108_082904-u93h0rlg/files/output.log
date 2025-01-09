@@ -1,0 +1,43 @@
+Loading checkpoint shards: 100%|███████████████████████████████████████████████████████| 2/2 [00:01<00:00,  1.09it/s]
+torch.float32
+Traceback (most recent call last):
+  File "/home/liukunlong/lkl_BiLLM/run.py", line 295, in <module>
+    dataloader, testloader = get_loaders(
+                             ^^^^^^^^^^^^
+  File "/home/liukunlong/lkl_BiLLM/datautils.py", line 117, in get_loaders
+    loaders= get_c4(nsamples, seed, seqlen, model, tokenizer)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/liukunlong/lkl_BiLLM/datautils.py", line 85, in get_c4
+    trainenc = tokenizer(traindata[i]['text'], return_tensors='pt')
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/liukunlong/anaconda3/envs/lkl_Billm/lib/python3.12/site-packages/transformers/tokenization_utils_base.py", line 2860, in __call__
+    encodings = self._call_one(text=text, text_pair=text_pair, **all_kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/liukunlong/anaconda3/envs/lkl_Billm/lib/python3.12/site-packages/transformers/tokenization_utils_base.py", line 2970, in _call_one
+    return self.encode_plus(
+           ^^^^^^^^^^^^^^^^^
+  File "/home/liukunlong/anaconda3/envs/lkl_Billm/lib/python3.12/site-packages/transformers/tokenization_utils_base.py", line 3046, in encode_plus
+    return self._encode_plus(
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/liukunlong/anaconda3/envs/lkl_Billm/lib/python3.12/site-packages/transformers/tokenization_utils.py", line 801, in _encode_plus
+    first_ids = get_input_ids(text)
+                ^^^^^^^^^^^^^^^^^^^
+  File "/home/liukunlong/anaconda3/envs/lkl_Billm/lib/python3.12/site-packages/transformers/tokenization_utils.py", line 768, in get_input_ids
+    tokens = self.tokenize(text, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/liukunlong/anaconda3/envs/lkl_Billm/lib/python3.12/site-packages/transformers/models/llama/tokenization_llama.py", line 245, in tokenize
+    tokens = super().tokenize(text, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/liukunlong/anaconda3/envs/lkl_Billm/lib/python3.12/site-packages/transformers/tokenization_utils.py", line 698, in tokenize
+    tokenized_text.extend(self._tokenize(token))
+                          ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/liukunlong/anaconda3/envs/lkl_Billm/lib/python3.12/site-packages/transformers/models/llama/tokenization_llama.py", line 266, in _tokenize
+    tokens = self.sp_model.encode(self.unk_token + text, out_type=str)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/liukunlong/anaconda3/envs/lkl_Billm/lib/python3.12/site-packages/sentencepiece/__init__.py", line 552, in Encode
+    return self._EncodeAsPieces(input, enable_sampling, nbest_size,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/liukunlong/anaconda3/envs/lkl_Billm/lib/python3.12/site-packages/sentencepiece/__init__.py", line 322, in _EncodeAsPieces
+    return _sentencepiece.SentencePieceProcessor__EncodeAsPieces(self, text, enable_sampling, nbest_size, alpha, add_bos, add_eos, reverse, emit_unk_piece)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
