@@ -30,7 +30,7 @@ def structural_guassian_distribution(tmp, H=None, metric="magnitude", up_lim=30)
     # 可视化部分
 
     # 创建3D surface plots
-    def create_3d_surface(tensor, name):
+    def create_3d_surface(tensor, name, text=None):
         tensor_np = tensor.abs().detach().cpu().numpy()
         x = np.arange(tensor_np.shape[0])
         y = np.arange(tensor_np.shape[1])
@@ -39,13 +39,15 @@ def structural_guassian_distribution(tmp, H=None, metric="magnitude", up_lim=30)
         # 创建matplotlib的3D surface plot
         fig = plt.figure(figsize=(10, 8))
         ax = fig.add_subplot(111, projection='3d')
-        surf = ax.plot_surface(X, Y, tensor_np.T, cmap='viridis', edgecolor='none')
+        surf = ax.plot_surface(X, Y, tensor_np.T, cmap='coolwarm', edgecolor='none')
         ax.set_title(name, pad=20, fontsize=12)
         ax.set_xlabel('Token')
         ax.set_ylabel('Dimension')
         ax.set_zlabel('Value')
-        fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5)
-        
+        ax.set_zlim(tensor_np.min(), tensor_np.max())
+        fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5) # 添加颜色条
+        ax.text(500, 120, tensor_np.max()*1.1, text, fontsize=12, color='red')
+
         # 设置视角
         ax.view_init(elev=30, azim=45)
         plt.tight_layout()
@@ -63,11 +65,9 @@ def structural_guassian_distribution(tmp, H=None, metric="magnitude", up_lim=30)
     
     log_dict = {}
     log_dict.update(create_3d_surface(tmp, f"tmp_{metric}"))
-    log_dict.update(create_3d_surface(target_weights_billm, f"target_weights_billm"))
-    log_dict.update(create_3d_surface(target_weights_lkl, f"target_weights_lkl"))
+    log_dict.update(create_3d_surface(target_weights_billm, f"target_weights_billm", text=chosen_columns_billm))
+    log_dict.update(create_3d_surface(target_weights_lkl, f"target_weights_lkl", text=chosen_columns_lkl))
     
-    log_dict.update({"chosen_columns_lkl":chosen_columns_lkl})
-    log_dict.update({"chosen_columns_billm":chosen_columns_billm})
 
     wandb.log(log_dict)
 

@@ -35,7 +35,6 @@ def structural_searching(origin_matrix, up_lim=30):
     lines = []
     # search for the optimal split for the first group, high order=2,, structured search
     _, top_braq_2_columns = torch.topk(true_counts, up_lim)
-    chosen_columns = top_braq_2_columns
     for i in range(1, up_lim):
         mask3 = torch.full((origin_matrix.shape[0], origin_matrix.shape[1]), False).to(origin_matrix.device)
         mask3[:, top_braq_2_columns[:i]] = True
@@ -51,6 +50,7 @@ def structural_searching(origin_matrix, up_lim=30):
         
 
     _, top_braq_2_columns = torch.topk(true_counts, optimal_split_0)
+    chosen_columns = top_braq_2_columns.tolist()
     mask3 = torch.full((origin_matrix.shape[0], origin_matrix.shape[1]), False).to(origin_matrix.device)
     mask3[:, top_braq_2_columns] = True
     group3 = high_order_residual(origin_matrix, mask3, order=2)
