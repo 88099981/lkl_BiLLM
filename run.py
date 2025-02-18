@@ -3,6 +3,7 @@ import wandb
 import torch
 import torch.nn as nn
 import argparse
+import json
 
 from bigptq import BRAGPTQ
 from binary import Binarization
@@ -15,7 +16,7 @@ def parse_args():
     # 添加其他已有的参数...
     return parser.parse_args()
 
-def get_model(model):
+def get_model(model, model_dtype):
     import torch
 
     def skip(*args, **kwargs):
@@ -27,12 +28,13 @@ def get_model(model):
     if "opt" in model:
         from transformers import OPTForCausalLM
 
-        model = OPTForCausalLM.from_pretrained(model, torch_dtype="auto")
+        model = OPTForCausalLM.from_pretrained(model, torch_dtype=model_dtype)
         model.seqlen = model.config.max_position_embeddings
+        print(model.dtype)
     elif "llama" in model:
         from transformers import AutoModelForCausalLM
 
-        model = AutoModelForCausalLM.from_pretrained(model, torch_dtype="float32") 
+        model = AutoModelForCausalLM.from_pretrained(model, torch_dtype=model_dtype) 
         model.seqlen = 2048
         print(model.dtype)
     return model
@@ -123,7 +125,17 @@ def quant_sequential(model, dataloader, dev):
     attention_mask = cache["attention_mask"]
     position_ids = cache['position_ids']
 
+    #保存路径
+    save_path = os.path.dirname(f'/home/liukunlong/lkl_BiLLM/output/{model.config.model_type}_{args.model_dtype}_{args.dataset}/')
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    save_path_pth = os.path.join(save_path, 'pth')
+    if not os.path.exists(save_path_pth):
+        os.makedirs(save_path_pth)
+
     print("Ready.")
+
+    json_data = {}
     
     for i in range(len(layers)):
         layer = layers[i].to(dev)
@@ -165,10 +177,15 @@ def quant_sequential(model, dataloader, dev):
         for name in gptq:
             print(i, name)
             print("Quantizing ...")
+            json_data[f'{i}-{name}']={'dtype': f'{args.model_dtype}', 'salient_metric': f'{args.salient_metric}'}
             info = gptq[name].fasterquant(
                 percdamp=args.percdamp, 
                 blocksize=args.blocksize,
+                json_data=json_data[f'{i}-{name}']
             )
+            torch.save(gptq[name].layer.weight.data, f'{save_path_pth}/{i}_{name}.pth')
+            torch.save(json_data[f'{i}-{name}'][f'Hinv'], f'{save_path_pth}/{i}_{name}_hinv.pth')
+            del json_data[f'{i}-{name}'][f'Hinv']
             gptq[name].free()
 
         for j in range(args.nsamples):
@@ -180,6 +197,11 @@ def quant_sequential(model, dataloader, dev):
         torch.cuda.empty_cache()
 
         inps, outs = outs, inps
+
+    # 将json_data保存到文件
+    current_time = time.strftime('%Y%m%d-%H%M%S')
+    with open(f'{save_path}/{current_time}.json', 'w') as f:
+        json.dump(json_data, f, indent=4)
 
     model.config.use_cache = use_cache
 
@@ -210,6 +232,12 @@ if __name__ == "__main__":
         type=str,
         choices=["xnor", "sign", "no", "2bit", "4bit", "prune", "braq"],
         help="quantization method; `xnor` is the method using XNOR to adapt hardware calculation; `prune` is the method used in sparseGPTQ; braq is the method used in BiLLM",
+    )
+    parser.add_argument(
+        "model_dtype",
+        type=str,
+        choices=["float32", "float16"],
+        help="model data type; `fp32` is the float32 data type; `fp16` is the float16 data type.",
     )
     parser.add_argument("--load_quantized", action="store_true")
     parser.add_argument(
@@ -269,27 +297,20 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    # 初始化wandb
-    wandb.init(
-        project="lkl_BiLLM_Quantization",
-        name=f"{args.model}-{time.strftime('%Y%m%d-%H%M%S')}",
-        config={
-            "model": args.model,
-            "dataset": args.dataset,
-            # 其他配置参数...
-        }
-    )
+
 
     groupsize = args.blocksize
 
     device = args.device
     save_title = f"{args.model}_{args.dataset}_{args.low_quant_method}_{groupsize}_{args.salient_metric}"
     save_file = "./output/" + save_title.replace("/", "_") + ".pt"
+
+
     if args.load_quantized:
         model = get_model(save_file)
         model.eval()
     else: # braq
-        model = get_model(args.model)
+        model = get_model(args.model, args.model_dtype)
         model.eval()
         tick = time.time()
         dataloader, testloader = get_loaders(
@@ -307,6 +328,18 @@ if __name__ == "__main__":
         if not os.path.exists(save_path):
             os.makedirs(save_path)
         model.save_pretrained(save_file)
+
+    if args.log_wandb:
+        # 初始化wandb
+        wandb.init(
+            project="lkl_BiLLM_Quantization",
+            name=f"{args.model}-{time.strftime('%Y%m%d-%H%M%S')}",
+            config={
+                "model": args.model,
+                "dataset": args.dataset,
+                "dtype": args.model_dtype,
+            }
+        )
 
     for dataset in ["wikitext2", "ptb", "c4"]:
         dataloader, testloader = get_loaders(

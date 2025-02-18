@@ -76,13 +76,13 @@ def llama_eval(model, testenc, dev,  dataset: str, log_wandb: bool = False):
         if model.model.norm is not None:
             hidden_states = model.model.norm(hidden_states)
         lm_logits = model.lm_head(hidden_states)
-        shift_logits = lm_logits[:, :-1, :].contiguous()
-        shift_labels = testenc[:, (i * model.seqlen) : ((i + 1) * model.seqlen)][:, 1:]
+        shift_logits = lm_logits[:, :-1, :].contiguous() #去掉output的最后一个元素，与输入对齐，再利用contiguous使其在内存上连续
+        shift_labels = testenc[:, (i * model.seqlen) : ((i + 1) * model.seqlen)][:, 1:] # 去掉input中的第一个元素，和输出对齐
         loss_fct = nn.CrossEntropyLoss()
         loss = loss_fct(
             shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1)
         )
-        neg_log_likelihood = loss.float() * model.seqlen
+        neg_log_likelihood = loss.float() * model.seqlen # 似乎可以去掉？
         nlls.append(neg_log_likelihood)
     ppl = torch.exp(torch.stack(nlls).sum() / (nsamples * model.seqlen))
     print(f"Perplexity: {ppl.item():3f}")
