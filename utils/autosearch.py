@@ -25,7 +25,7 @@ def calculate_percentage_and_variance_original(weights, abs_weights, bin_edges):
 '''
 Include main method to search the rate for 2-bit salient data columns and the optimal split for 1-bit data
 '''
-def structural_searching(origin_matrix, up_lim=30):
+def structural_searching(origin_matrix, up_lim=30, former_columns=list()):
     minimal_value = float('inf')
     minimal_value_0 = float('inf')
 
@@ -33,26 +33,30 @@ def structural_searching(origin_matrix, up_lim=30):
 
     error = []
     lines = []
-    # search for the optimal split for the first group, high order=2,, structured search
-    _, top_braq_2_columns = torch.topk(true_counts, up_lim)
-    for i in range(1, up_lim):
-        mask3 = torch.full((origin_matrix.shape[0], origin_matrix.shape[1]), False).to(origin_matrix.device)
-        mask3[:, top_braq_2_columns[:i]] = True
-        group3 = high_order_residual(origin_matrix, mask3, order=2)
+    if len(former_columns) == 0:
+        # search for the optimal split for the first group, high order=2,, structured search
+        _, top_braq_2_columns = torch.topk(true_counts, up_lim)
+        for i in range(1, up_lim):
+            mask3 = torch.full((origin_matrix.shape[0], origin_matrix.shape[1]), False).to(origin_matrix.device)
+            mask3[:, top_braq_2_columns[:i]] = True
+            group3 = high_order_residual(origin_matrix, mask3, order=2)
 
-        group4 = high_order_residual(origin_matrix, ~mask3, order=2)
-        quantize_error_0 = error_computing(origin_matrix, group4+group3)
-        error.append(quantize_error_0.item())
-        lines.append(i)
-        if quantize_error_0 < minimal_value_0:
-            minimal_value_0 = quantize_error_0
-            optimal_split_0 = i
-        
-
-    _, top_braq_2_columns = torch.topk(true_counts, optimal_split_0)
-    chosen_columns = top_braq_2_columns.tolist()
+            group4 = high_order_residual(origin_matrix, ~mask3, order=2)
+            quantize_error_0 = error_computing(origin_matrix, group4+group3)
+            error.append(quantize_error_0.item())
+            lines.append(i)
+            if quantize_error_0 < minimal_value_0:
+                minimal_value_0 = quantize_error_0
+                optimal_split_0 = i
+            
+        _, top_braq_2_columns = torch.topk(true_counts, optimal_split_0)
+        chosen_columns = top_braq_2_columns.tolist() # 用于输出选中列
+        chosen_columns_tensor = top_braq_2_columns
+    else:
+        chosen_columns = former_columns
+        chosen_columns_tensor = torch.tensor(former_columns, device=origin_matrix.device)
     mask3 = torch.full((origin_matrix.shape[0], origin_matrix.shape[1]), False).to(origin_matrix.device)
-    mask3[:, top_braq_2_columns] = True
+    mask3[:, chosen_columns_tensor] = True
     group3 = high_order_residual(origin_matrix, mask3, order=2)
 
     search_matrix = origin_matrix * (~mask3)

@@ -1,6 +1,6 @@
 import math
 import time
-from exceptiongroup import catch
+#from exceptiongroup import catch
 import torch
 import torch.nn as nn
 import transformers
@@ -60,6 +60,7 @@ class BRAGPTQ:
                     partition=3, 
                     orders=(1,1,2),
                     json_data=Dict[str, Any],
+                    VISUALIZE=False
                     ):
         W = self.layer.weight.data.clone()
         if isinstance(self.layer, nn.Conv2d):
@@ -87,13 +88,16 @@ class BRAGPTQ:
         json_data[f'Hinv'] = Hinv
 
         for blocki, col_st in enumerate(range(0, self.columns, blocksize)): # 0, 128, 256, ...
+
             col_ed = min(col_st + blocksize, self.columns)
             n_cols = col_ed - col_st
 
             st = col_st
             ed = col_ed
+
+            former_chosen_columns = json_data.get(f'{st}-{ed} chosen_columns', []) 
             mask = torch.zeros_like(W[:, st:ed], dtype=torch.bool).unsqueeze(0).repeat_interleave(partition, dim=0)
-            mask1, mask2, mask3, chosen_columns= structural_guassian_distribution(W[:, st:ed], H[st:ed, st:ed], self.salient_metric, 50)
+            mask1, mask2, mask3, final_chosen_columns= structural_guassian_distribution(W[:, st:ed], H[st:ed, st:ed], self.salient_metric, 50, former_chosen_columns)
             mask[0] = mask1
             mask[1] = mask2
             mask[2] = mask3
@@ -155,12 +159,12 @@ class BRAGPTQ:
                     self.layer.weight.data[:, col_ed:] = W[:, col_ed:]
                     print(torch.sum((self.layer(self.inp1) - self.out1) ** 2))
                     print(torch.sum(Losses))
-            json_data[f'{st}-{ed} chosen_columns'] = chosen_columns
+            json_data[f'{st}-{ed} chosen_columns'] = final_chosen_columns
             
 
         
 
-        torch.cuda.synchronize()
+        torch.cuda.synchronize(device=self.dev)
         print("time %.2f" % (time.time() - tick))
         print("error", torch.sum(Losses).item())
 

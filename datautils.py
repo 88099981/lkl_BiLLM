@@ -101,11 +101,11 @@ def get_c4(nsamples, seed, seqlen, model, tokenizer):
     return trainloader, valenc
 
 def get_loaders(name, nsamples=128, seed=0, seqlen=2048, model=''):
-    # cache_file=f'cache/{name}_{nsamples}_{seed}_{seqlen}_{model}.pt'
-    # try:
-    #     return torch.load(cache_file)
-    # except:
-    #     pass
+    cache_file=f'/home/liukunlong/lkl_BiLLM/cache/{name}_{nsamples}_{seed}_{seqlen}.pt'
+    try:
+        return torch.load(cache_file, weights_only=False)
+    except:
+        pass
 
     tokenizer = get_tokenizer(model)
     
@@ -115,9 +115,9 @@ def get_loaders(name, nsamples=128, seed=0, seqlen=2048, model=''):
         loaders= get_ptb(nsamples, seed, seqlen, model, tokenizer)
     if 'c4' in name:
         loaders= get_c4(nsamples, seed, seqlen, model, tokenizer)
-    # directory='/'.join(cache_file.split('/')[:-1])
-    # if not os.path.exists(directory):
-    #     os.makedirs(directory)
+    directory='/'.join(cache_file.split('/')[:-1])
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
-    # torch.save(loaders,cache_file)
+    torch.save(loaders,cache_file)
     return loaders

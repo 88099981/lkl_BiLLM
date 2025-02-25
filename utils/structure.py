@@ -8,7 +8,7 @@ from binary import high_order_residual
 '''
 Used to generate masks for minor structural 2-bit salient data and split major 1-bit normal data according to different metric.
 '''
-def structural_guassian_distribution(tmp, H=None, metric="magnitude", up_lim=30):
+def structural_guassian_distribution(tmp, H=None, metric="magnitude", up_lim=30, former_columns=list()):
     if metric == "hessian":
         target_weights = tmp ** 2 / (torch.diag(H).reshape((1, -1))) ** 2
     elif metric == "magnitude":
@@ -22,7 +22,7 @@ def structural_guassian_distribution(tmp, H=None, metric="magnitude", up_lim=30)
     else:
         raise NotImplementedError
     
-    optimal_split, mask3, chosen_columns = structural_searching(target_weights, up_lim)
+    optimal_split, mask3, chosen_columns = structural_searching(target_weights, up_lim, former_columns)
     # optimal_split, mask3, chosen_columns_billm = structural_searching(target_weights_billm, up_lim)
     mask1, mask2 = generate_structural_mask(target_weights, mask3, optimal_split)
 

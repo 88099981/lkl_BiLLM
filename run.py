@@ -5,9 +5,13 @@ import torch.nn as nn
 import argparse
 import json
 
+from typing import Any
+from typing_extensions import Dict
 from bigptq import BRAGPTQ
 from binary import Binarization
 from modelutils import find_layers
+
+VISUALIZE = False
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -44,7 +48,7 @@ def get_model(model, model_dtype):
 The function is employed to calibrate and quantize models layer by layer.
 '''
 @torch.no_grad()
-def quant_sequential(model, dataloader, dev):
+def quant_sequential(model, dataloader, dev, json_data=dict()):
     print("Starting ...")
 
     for name, module in model.named_modules():
@@ -73,7 +77,7 @@ def quant_sequential(model, dataloader, dev):
         layers = model.model.layers
         model.model.embed_tokens = model.model.embed_tokens.to(dev)
         model.model.norm = model.model.norm.to(dev)
-        model.model.rotary_emb = model.model.rotary_emb.to(dev)
+        # model.model.rotary_emb = model.model.rotary_emb.to(dev) # 适配transformers 4.47.1
     layers[0] = layers[0].to(dev)
 
     dtype = next(iter(model.parameters())).dtype
@@ -135,7 +139,7 @@ def quant_sequential(model, dataloader, dev):
 
     print("Ready.")
 
-    json_data = {}
+    
     
     for i in range(len(layers)):
         layer = layers[i].to(dev)
@@ -177,15 +181,20 @@ def quant_sequential(model, dataloader, dev):
         for name in gptq:
             print(i, name)
             print("Quantizing ...")
-            json_data[f'{i}-{name}']={'dtype': f'{args.model_dtype}', 'salient_metric': f'{args.salient_metric}'}
+
+            if f'{i}-{name}' not in json_data:
+                json_data[f'{i}-{name}']={}
             info = gptq[name].fasterquant(
                 percdamp=args.percdamp, 
                 blocksize=args.blocksize,
-                json_data=json_data[f'{i}-{name}']
+                json_data=json_data[f'{i}-{name}'],
             )
-            torch.save(gptq[name].layer.weight.data, f'{save_path_pth}/{i}_{name}.pth')
-            torch.save(json_data[f'{i}-{name}'][f'Hinv'], f'{save_path_pth}/{i}_{name}_hinv.pth')
-            del json_data[f'{i}-{name}'][f'Hinv']
+            if VISUALIZE:
+                json_data[f'{i}-{name}']={'dtype': f'{args.model_dtype}', 'salient_metric': f'{args.salient_metric}'}
+                torch.save(gptq[name].layer.weight.data, f'{save_path_pth}/{i}_{name}.pth')
+                torch.save(json_data[f'{i}-{name}'][f'Hinv'], f'{save_path_pth}/{i}_{name}_hinv.pth')
+                del json_data[f'{i}-{name}'][f'Hinv']
+
             gptq[name].free()
 
         for j in range(args.nsamples):
@@ -198,10 +207,11 @@ def quant_sequential(model, dataloader, dev):
 
         inps, outs = outs, inps
 
-    # 将json_data保存到文件
-    current_time = time.strftime('%Y%m%d-%H%M%S')
-    with open(f'{save_path}/{current_time}.json', 'w') as f:
-        json.dump(json_data, f, indent=4)
+    if VISUALIZE:
+        # 将json_data保存到文件
+        current_time = time.strftime('%Y%m%d-%H%M%S')
+        with open(f'{save_path}/{current_time}.json', 'w') as f:
+            json.dump(json_data, f, indent=4)
 
     model.config.use_cache = use_cache
 
@@ -295,6 +305,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--log_wandb", action="store_true", help="Whether to log to wandb."
     )
+    parser.add_argument(
+        "--visualize", action="store_true", help="Whether to visualize."
+    )
 
     args = parser.parse_args()
 
@@ -302,16 +315,21 @@ if __name__ == "__main__":
     groupsize = args.blocksize
 
     device = args.device
-    save_title = f"{args.model}_{args.dataset}_{args.low_quant_method}_{groupsize}_{args.salient_metric}"
-    save_file = "./output/" + save_title.replace("/", "_") + ".pt"
+    save_title = f"{os.path.basename(args.model.lower())}_{args.dataset}_{args.low_quant_method}_{groupsize}_{args.salient_metric}"
+    save_file = "/home/liukunlong/lkl_BiLLM/output/models/" + save_title.replace("/", "_") + ".pt"
 
 
     if args.load_quantized:
-        model = get_model(save_file)
+        model = get_model("/home/liukunlong/lkl_BiLLM/output/models/llama-2-7b-hf_c4_braq_128_hessian.pt", 'auto').to(device)
         model.eval()
     else: # braq
-        model = get_model(args.model, args.model_dtype)
-        model.eval()
+        
+        chosen_data = {}
+
+        model_fp32 = get_model(args.model, getattr(torch, 'float32')).to(device)      
+        model_fp32.eval()
+        model=model_fp32
+        
         tick = time.time()
         dataloader, testloader = get_loaders(
             args.dataset,
@@ -320,7 +338,18 @@ if __name__ == "__main__":
             model=args.model,
             seqlen=model.seqlen,
         )
-        quant_sequential(model, dataloader, device)
+        
+
+        quant_sequential(model_fp32, dataloader, device, chosen_data)
+
+        
+        del model_fp32, model
+        torch.cuda.empty_cache()
+
+        model_fp16 = get_model(args.model, getattr(torch, 'float16')).to(device)
+        model_fp16.eval()
+        model=model_fp16
+        quant_sequential(model_fp16, dataloader, device, chosen_data)
         print("quantization time:", time.time() - tick, "s")
 
     if args.save:
@@ -340,6 +369,8 @@ if __name__ == "__main__":
                 "dtype": args.model_dtype,
             }
         )
+    if args.visualize:
+        VISUALIZE = True
 
     for dataset in ["wikitext2", "ptb", "c4"]:
         dataloader, testloader = get_loaders(
@@ -352,5 +383,5 @@ if __name__ == "__main__":
             opt_eval(model, testloader, device, dataset, args.log_wandb)
         elif "llama" in args.model:
             from eval_ppl_utils import llama_eval
-
+            print(model.dtype)
             llama_eval(model, testloader, device, dataset, args.log_wandb)
